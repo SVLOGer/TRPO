@@ -1,0 +1,42 @@
+@startuml C4_Component
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+title Booking Service - Диаграмма компонентов
+
+Container(booking_service_container, "Booking Service", "Kotlin, Spring Boot", "Микросервис управления бронированиями")
+
+System_Boundary(booking_boundary, "Внутренняя структура Booking Service") {
+    Component(grpc_controller, "gRPC Controller", "Spring gRPC", "Входная точка для запросов от Gateway и других сервисов")
+    
+    Component(booking_facade, "Booking Facade", "Kotlin", "Оркестрация бизнес-процессов")
+    
+    Component(booking_domain, "Domain Service", "Kotlin", "Бизнес-логика (расчет стоимости, смена статусов)")
+    
+    Component(booking_repo, "Booking Repository", "Spring Data R2DBC/JPA", "Слой доступа к данным")
+    
+    Component(vehicle_client, "Vehicle Client", "gRPC Client", "Клиент к Vehicle Service (проверка авто)")
+    Component(payment_client, "Payment Client", "gRPC Client", "Клиент к Payment Service (холдирование средств)")
+    
+    Component(kafka_producer, "Kafka Producer", "Spring Kafka", "Публикация событий домена")
+}
+
+ContainerDb(postgres, "PostgreSQL", "Booking DB", "Хранение данных о бронированиях")
+Container(vehicle_service, "Vehicle Service", "gRPC Server", "Микросервис ТС")
+Container(payment_service, "Payment Service", "gRPC Server", "Микросервис платежей")
+Container(kafka, "Kafka", "Broker", "Шина событий")
+
+' Связи внутри
+Rel(grpc_controller, booking_facade, "Вызывает методы", "Kotlin")
+Rel(booking_facade, booking_domain, "Использует логику", "Kotlin")
+Rel(booking_facade, vehicle_client, "Проверяет доступность", "gRPC")
+Rel(booking_facade, payment_client, "Инициирует оплату", "gRPC")
+Rel(booking_domain, booking_repo, "Сохраняет состояние", "Kotlin")
+Rel(booking_domain, kafka_producer, "Публикует события", "Kotlin")
+
+' Связи наружу
+Rel(booking_repo, postgres, "SQL запросы", "JDBC/R2DBC")
+Rel(vehicle_client, vehicle_service, "gRPC вызовы", "Protobuf")
+Rel(payment_client, payment_service, "gRPC вызовы", "Protobuf")
+Rel(kafka_producer, kafka, "BookingCreated, BookingCancelled", "TCP")
+
+@enduml
