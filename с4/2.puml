@@ -1,0 +1,74 @@
+@startuml C4_Container
+!includeurl https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+title Платформа аренды ТС - Диаграмма контейнеров
+
+Person(renter, "Арендатор", "Клиент сервиса")
+Person(owner, "Владелец", "Партнер сервиса")
+
+System_Boundary(c1, "Платформа аренды ТС") {
+    Container(web_app, "Web App", "React, TypeScript", "Веб-интерфейс для всех ролей")
+    Container(mobile_app, "Mobile App", "React Native", "Мобильное приложение (iOS/Android)")
+
+    Container(api_gateway, "API Gateway", "Spring Cloud Gateway", "Маршрутизация, Rate Limiting, Аутентификация")
+
+    Container(kafka, "Kafka", "Apache Kafka", "Брокер сообщений для асинхронных событий")
+
+    ' Микросервисы (Kotlin/Spring Boot)
+    Container(auth_service, "Auth Service", "Kotlin, Spring Boot", "Управление пользователями, регистрация, сессии и токены")
+    Container(search_service, "Search Service", "Kotlin, Spring Boot", "Поиск по каталогу и фильтрация")
+    Container(booking_service, "Booking Service", "Kotlin, Spring Boot", "Управление процессами бронирования")
+    Container(vehicle_service, "Vehicle Service", "Kotlin, Spring Boot", "Управление каталогом ТС и файлами")
+    Container(payment_service, "Payment Service", "Kotlin, Spring Boot", "Интеграция с платежами")
+    Container(notification_service, "Notification Service", "Kotlin, Spring Boot", "Рассылка уведомлений")
+
+    ' Хранилища данных
+    ContainerDb(redis, "Redis", "Redis", "Кэш и сессии пользователей")
+    ContainerDb(postgres_booking, "Booking DB", "PostgreSQL", "Данные бронирований")
+    ContainerDb(postgres_vehicle, "Vehicle DB", "PostgreSQL", "Данные транспортных средств")
+    ContainerDb(postgres_users, "User DB", "PostgreSQL", "Профили пользователей и аутентификация")
+    ContainerDb(elastic, "Elasticsearch", "Elasticsearch", "Индекс для полнотекстового поиска")
+    ContainerDb(s3, "S3 Storage", "Amazon S3", "Хранение фото и документов")
+}
+
+System_Ext(moneta, "Монета", "API")
+System_Ext(yandex_maps, "Яндекс Карты", "API")
+System_Ext(notifications, "SMS/Email шлюз", "API")
+
+' Взаимодействие клиентов с Gateway
+Rel(web_app, api_gateway, "REST API запросы", "HTTPS")
+Rel(mobile_app, api_gateway, "REST API запросы", "HTTPS")
+
+' Gateway маршрутизация
+Rel(api_gateway, auth_service, "Маршрутизация", "gRPC/REST")
+Rel(api_gateway, search_service, "Маршрутизация", "gRPC/REST")
+Rel(api_gateway, booking_service, "Маршрутизация", "gRPC/REST")
+Rel(api_gateway, vehicle_service, "Маршрутизация", "gRPC/REST")
+
+' Межсервисное взаимодействие (gRPC)
+Rel(booking_service, vehicle_service, "Проверка доступности ТС", "gRPC")
+Rel(booking_service, payment_service, "Инициация оплаты", "gRPC")
+Rel(search_service, vehicle_service, "Получение деталей ТС", "gRPC")
+
+' Взаимодействие с БД
+Rel(auth_service, redis, "Чтение/запись сессий", "Redis Protocol")
+Rel(auth_service, postgres_users, "CRUD профилей, аутентификация", "JDBC/R2DBC") ' <-- ИСПРАВЛЕНИЕ ТУТ
+Rel(booking_service, postgres_booking, "CRUD бронирований", "JDBC/R2DBC")
+Rel(vehicle_service, postgres_vehicle, "CRUD автомобилей", "JDBC/R2DBC")
+Rel(vehicle_service, s3, "Загрузка фото", "HTTPS")
+Rel(search_service, elastic, "Поисковые запросы", "HTTP")
+
+' Асинхронные события (Kafka)
+Rel(booking_service, kafka, "BookingCreatedEvent", "TCP")
+Rel(vehicle_service, kafka, "VehicleUpdatedEvent", "TCP")
+
+' Consumers
+Rel(kafka, notification_service, "Слушает события для уведомлений", "TCP")
+Rel(kafka, search_service, "Индексация изменений (CQRS)", "TCP")
+
+' Внешние системы
+Rel(payment_service, moneta, "Транзакции", "HTTPS")
+Rel(vehicle_service, yandex_maps, "Геокодинг адресов", "HTTPS")
+Rel(notification_service, notifications, "Отправка", "HTTPS")
+
+@enduml

@@ -1,0 +1,24 @@
+@startuml C4_Context
+!includeurl https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+title Платформа аренды ТС - Контекстная диаграмма
+
+Person(renter, "Арендатор", "Ищет и бронирует транспорт")
+Person(owner, "Владелец", "Сдает транспорт, управляет парком")
+Person(admin, "Администратор", "Модерирует контент и разрешает споры")
+
+System(rent_system, "Платформа аренды ТС", "Обеспечивает поиск, бронирование и оплату аренды транспортных средств")
+
+System_Ext(moneta, "Монета", "Платежная система (процессинг карт и выплат)")
+System_Ext(yandex_maps, "Яндекс Карты", "Геокодинг и отображение карт")
+System_Ext(notifications, "SMS/Email шлюз", "Отправка уведомлений пользователям")
+
+Rel(renter, rent_system, "Ищет транспорт, создает бронирования", "HTTPS")
+Rel(owner, rent_system, "Добавляет транспорт, подтверждает брони", "HTTPS")
+Rel(admin, rent_system, "Управляет пользователями и контентом", "HTTPS")
+
+Rel(rent_system, moneta, "Проводит платежи и выплаты", "API/HTTPS")
+Rel(rent_system, yandex_maps, "Получает данные карт и маршрутов", "API/HTTPS")
+Rel(rent_system, notifications, "Отправляет email и sms", "SMTP/API")
+
+@enduml
