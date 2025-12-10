@@ -1,0 +1,65 @@
+@startuml
+title Диаграмма состояний: Основной процесс арендатора
+
+state "ФормаАвторизации" as login
+state "ГлавныйПоиск" as main_search
+state "КаталогТС" as catalog
+state "ДеталиТС" as vehicle_details
+state "ФормаБронирования" as booking_form
+state "ПроверкаДоступности" as check_availability
+state "ОплатаИДепозит" as payment
+state "ОшибкаОплаты" as payment_error
+state "ПодтверждениеБронирования" as booking_confirmed
+state "МоиБронирования" as my_bookings
+state "АктивнаяАренда" as active_rental
+state "ПроцессВозврата" as return_process
+state "ФормаОтзыва" as feedback_form
+state "ЗавершеннаяАренда" as rental_completed
+state "Профиль" as profile
+state "ИсторияАренд" as rental_history
+
+[*] --> login
+login --> main_search : Успешный вход
+
+main_search --> catalog : Нажал "Найти" с фильтрами
+main_search --> profile : Нажал "Профиль"
+main_search --> my_bookings : Нажал "Мои бронирования"
+catalog --> main_search : Нажал "Назад"
+
+' Работа с каталогом
+catalog --> vehicle_details : Выбрал ТС из списка
+vehicle_details --> catalog : Нажал "Назад в каталог"
+vehicle_details --> booking_form : Нажал "Забронировать"
+
+' Процесс бронирования и оплаты
+booking_form --> check_availability : Нажал "Проверить даты"
+check_availability --> payment : Даты доступны
+check_availability --> booking_form : Даты заняты (возврат к редактированию)
+payment --> booking_confirmed : Оплата успешна
+payment --> payment_error : Ошибка оплаты/недостаточно средств
+payment_error --> payment : Повторить оплату
+payment_error --> vehicle_details : Отмена бронирования
+booking_confirmed --> my_bookings : Автоматический переход
+
+' Управление бронированиями
+my_bookings --> main_search : Нажал "Найти еще"
+my_bookings --> active_rental : Наступила дата начала аренды\n(или нажал "Начать")
+my_bookings --> booking_confirmed : Выбрал будущее бронирование
+active_rental --> return_process : Нажал "Завершить аренду"\n(по факту возврата ТС)
+return_process --> feedback_form : Возврат подтвержден поставщиком
+feedback_form --> rental_completed : Отзыв отправлен
+rental_completed --> my_bookings : Автоматический переход
+my_bookings --> rental_history : Нажал "История аренд"
+
+' Навигация из профиля
+profile --> main_search : Нажал "На главную"
+profile --> rental_history : Нажал "История аренд"
+profile --> my_bookings : Нажал "Мои бронирования"
+rental_history --> profile : Нажал "Назад в профиль"
+
+' Возвраты на главный поиск (основной хаб)
+my_bookings --> main_search : Нажал "На главную"
+vehicle_details --> main_search : Нажал "На главную"
+rental_completed --> main_search : Нажал "На главную"
+
+@enduml
