@@ -62,4 +62,9 @@ my_bookings --> main_search : Нажал "На главную"
 vehicle_details --> main_search : Нажал "На главную"
 rental_completed --> main_search : Нажал "На главную"
 
+' Выход из системы - КОНЕЧНОЕ СОСТОЯНИЕ
+main_search --> [*] : Нажал "Выйти"
+profile --> [*] : Нажал "Выйти"
+my_bookings --> [*] : Нажал "Выйти"
+
 @enduml
