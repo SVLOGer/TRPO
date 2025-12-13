@@ -1,0 +1,223 @@
+@startuml
+title Платформа аренды ТС - Maintenance & Deployment Processes
+
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+' Убрали ortho, чтобы линии были плавными и не слипались
+
+' === CI/CD PIPELINE ===
+card "CI/CD Pipeline" {
+  card "Development" {
+    card "Git (Feature Branches)" as git
+    card "Developers" as devs
+    
+    ' Backend tools
+    card "Docker Build (Jib)" as build_be
+    card "Unit: Kotest + MockK" as unit_be
+    card "Integ: Testcontainers" as integ_be
+    
+    ' Frontend/Mobile tools
+    card "Build Web/Mobile" as build_fe
+    card "Unit: Jest" as unit_fe
+    card "E2E: Playwright/Detox" as e2e
+    
+    card "Load: k6" as perf
+  }
+
+  card "Staging" {
+    card "Deploy to Staging K8s" as staging_deploy
+    card "Fastlane (Beta Release)" as fastlane_beta
+    card "API Contract Tests" as api_tests
+  }
+
+  card "Production" {
+    card "Blue-Green Deployment" as bluegreen
+    card "Fastlane (Store Release)" as fastlane_prod
+    card "Rollback Procedure" as rollback
+    database "Production Kubernetes" as k8s_prod
+    card "App Store / Google Play" as app_stores
+  }
+}
+
+' === КОММЕНТАРИИ ДЛЯ CI/CD ===
+note left of fastlane_beta
+  <b>Mobile DevOps (Fastlane)</b>
+  • Сборка .ipa / .apk
+  • Отправка в TestFlight
+  • Управление сертификатами
+  • Авто-скриншоты
+end note
+
+note right of perf
+  <b>Нагрузочное тестирование (k6)</b>
+  • Эмуляция пикового спроса
+  • Тест сценария "Поиск авто"
+  • Проверка SLA по задержкам
+end note
+
+' === MONITORING & OBSERVABILITY ===
+card "Monitoring & Observability" {
+  card "Prometheus" as prometheus
+  card "Elasticsearch (Logs)" as elk_logs
+  card "Jaeger/Zipkin" as tracing
+  card "AlertManager" as alertmanager
+  card "Grafana Dashboards" as grafana
+  card "Sentry" as sentry
+}
+
+' === КОММЕНТАРИИ ДЛЯ MONITORING ===
+note right of tracing
+  <b>Distributed Tracing</b>
+  • Отслеживание пути запроса
+  • Gateway -> Search -> Vehicle
+  • Поиск узких мест (latency)
+  • Визуализация водопада
+end note
+
+note left of sentry
+  <b>Error Tracking</b>
+  • Сбор крэшей iOS/Android
+  • JS ошибки фронтенда
+  • Стек-трейсы исключений Kotlin
+  • Группировка инцидентов
+end note
+
+note right of elk_logs
+  <b>Centralized Logging</b>
+  • Логи всех микросервисов
+  • Correlation ID из трассировки
+  • Аудит действий админов
+  • Анализ безопасности
+end note
+
+' === MAINTENANCE PROCEDURES ===
+card "Maintenance Procedures" {
+  card "PostgreSQL Vacuum" as pg_maint
+  card "Elasticsearch Reindexing" as es_maint
+  card "Kafka Rebalancing" as kafka_maint
+  card "S3 Lifecycle Policies" as s3_maint
+  card "Daily Backups (Wal-G)" as backups
+  card "SSL Renewal" as ssl
+}
+
+' === КОММЕНТАРИИ ДЛЯ MAINTENANCE ===
+note left of pg_maint
+  <b>Обслуживание PostgreSQL</b>
+  • Очистка dead tuples (VACUUM)
+  • Обновление статистики
+  • Проверка bloat индексов
+end note
+
+note right of es_maint
+  <b>Обслуживание Поиска</b>
+  • Zero-downtime reindex
+  • Удаление старых индексов
+  • Оптимизация шардов
+  • Изменение маппинга
+end note
+
+note left of s3_maint
+  <b>Очистка S3</b>
+  • Удаление временных файлов
+  • Архивация в Glacier
+  • Очистка фото удаленных авто
+end note
+
+note right of kafka_maint
+  <b>Kafka Maintenance</b>
+  • Управление Retention
+  • Мониторинг Consumer Lag
+  • Балансировка партиций
+end note
+
+' === AUTOMATION ===
+card "Automation" {
+  card "GitOps - ArgoCD" as argocd
+  card "Terraform" as terraform
+  card "Flyway Migrations" as migrations
+}
+
+note right of migrations
+  <b>Миграции БД (Flyway)</b>
+  • Версионирование схемы
+  • Накат в Init-контейнерах
+  • Проверка совместимости
+  • Откат неудачных миграций
+end note
+
+' === SERVICE LEVEL INDICATORS ===
+card "Business SLIs" {
+  card "Search Latency: <200ms" as search_sli
+  card "Booking Success: >99.5%" as booking_sli
+  card "Index Freshness: <5s" as index_sli
+}
+
+note left of index_sli
+  <b>Актуальность поиска</b>
+  • Критическая метрика для CQRS
+  • Задержка между записью в БД
+    и появлением в поиске
+  • Мониторинг Kafka Consumer
+end note
+
+' === СВЯЗИ (упрощенные для читаемости) ===
+
+' Pipeline
+devs --> git
+git --> build_be
+git --> build_fe
+
+build_be --> unit_be
+unit_be --> integ_be
+integ_be --> staging_deploy
+
+build_fe --> unit_fe
+unit_fe --> e2e
+e2e --> fastlane_beta
+e2e --> staging_deploy
+
+staging_deploy --> perf
+perf --> api_tests
+api_tests --> bluegreen
+api_tests --> fastlane_prod
+
+bluegreen --> k8s_prod
+fastlane_prod --> app_stores
+
+' Monitoring connections
+k8s_prod --> prometheus
+k8s_prod --> elk_logs
+k8s_prod --> tracing
+app_stores --> sentry
+
+prometheus --> grafana
+elk_logs --> grafana
+tracing --> grafana
+prometheus --> alertmanager
+
+' Maintenance connections
+pg_maint --> k8s_prod
+es_maint --> k8s_prod
+kafka_maint --> k8s_prod
+s3_maint --> k8s_prod
+backups --> k8s_prod
+migrations --> k8s_prod
+
+' Automation connections
+argocd --> k8s_prod
+terraform --> k8s_prod
+
+' Metrics connections
+prometheus --> search_sli
+prometheus --> booking_sli
+prometheus --> index_sli
+
+note right of k8s_prod
+  <b>Production Environment</b>
+  • PostgreSQL Cluster
+  • Elasticsearch Cluster
+  • Kafka Cluster
+  • Redis Cluster
+end note
+
+@enduml
