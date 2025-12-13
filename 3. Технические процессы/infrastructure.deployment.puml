@@ -1,0 +1,227 @@
+@startuml
+!includeurl https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Deployment.puml
+
+title Сервис Аренды Транспортных Средств - Диаграмма развертывания
+
+' === KUBERNETES CLUSTER ===
+Deployment_Node(k8s_cluster, "Kubernetes Cluster", "EKS - 3 ноды") {
+
+    ' === K8S SERVICES ===
+    Deployment_Node(services_layer, "Kubernetes Services", "Service Discovery & Load Balancing") {
+        Container(identity_service_svc, "identity-service", "K8s Service", "ClusterIP:8080")
+        Container(vehicle_service_svc, "vehicle-service", "K8s Service", "ClusterIP:8081")
+        Container(search_service_svc, "search-service", "K8s Service", "ClusterIP:8082")
+        Container(booking_service_svc, "booking-service", "K8s Service", "ClusterIP:8083")
+        Container(payment_service_svc, "payment-service", "K8s Service", "ClusterIP:8084")
+        Container(review_service_svc, "review-service", "K8s Service", "ClusterIP:8085")
+        Container(notification_service_svc, "notification-service", "K8s Service", "ClusterIP:8086")
+        Container(insurance_service_svc, "insurance-service", "K8s Service", "ClusterIP:8087")
+        Container(pricing_service_svc, "pricing-service", "K8s Service", "ClusterIP:8088")
+        Container(geolocation_service_svc, "geolocation-service", "K8s Service", "ClusterIP:8089")
+        Container(admin_service_svc, "admin-service", "K8s Service", "ClusterIP:8090")
+        Container(rabbitmq_service, "rabbitmq-service", "K8s Service", "ClusterIP:5672")
+        Container(redis_service, "redis-service", "K8s Service", "ClusterIP:6379")
+    }
+
+    ' === INGRESS & API GATEWAY ===
+    Deployment_Node(gateway_layer, "Gateway Layer", "ingress-nginx + Spring Cloud Gateway") {
+        Container(ingress_controller, "Ingress", "Nginx", "Входная точка")
+        Container(api_gateway, "API Gateway", "Spring Cloud Gateway", "Маршрутизация API")
+    }
+
+    ' === BACKEND NODE 1 ===
+    Deployment_Node(backend_node_1, "Node 1", "k8s-node-1 | c5.xlarge") {
+        Container(web_frontend_pod1, "Web Frontend", "React + TypeScript", "replica 1/3")
+        Container(identity_pod1, "Identity Service", "Kotlin + Spring Boot", "replica 1/3")
+        Container(vehicle_pod1, "Vehicle Service", "Kotlin + Spring Boot", "replica 1/3")
+        Container(search_pod1, "Search Service", "Kotlin + Spring Boot", "replica 1/3")
+        Container(booking_pod1, "Booking Service", "Kotlin + Spring Boot", "replica 1/3")
+        Container(payment_pod1, "Payment Service", "Kotlin + Spring Boot", "replica 1/3")
+        Container(notification_pod1, "Notification Service", "Kotlin + Spring Boot", "replica 1/3")
+        Container(rabbitmq_pod1, "RabbitMQ Node", "Erlang", "cluster node 1/3")
+        Container(redis_pod1, "Redis Node", "Redis", "cluster node 1/3")
+    }
+
+    ' === BACKEND NODE 2 ===
+    Deployment_Node(backend_node_2, "Node 2", "k8s-node-2 | c5.xlarge") {
+        Container(web_frontend_pod2, "Web Frontend", "React + TypeScript", "replica 2/3")
+        Container(identity_pod2, "Identity Service", "Kotlin + Spring Boot", "replica 2/3")
+        Container(vehicle_pod2, "Vehicle Service", "Kotlin + Spring Boot", "replica 2/3")
+        Container(search_pod2, "Search Service", "Kotlin + Spring Boot", "replica 2/3")
+        Container(booking_pod2, "Booking Service", "Kotlin + Spring Boot", "replica 2/3")
+        Container(payment_pod2, "Payment Service", "Kotlin + Spring Boot", "replica 2/3")
+        Container(review_pod2, "Review Service", "Kotlin + Spring Boot", "replica 1/2")
+        Container(insurance_pod1, "Insurance Service", "Kotlin + Spring Boot", "replica 1/2")
+        Container(pricing_pod1, "Pricing Service", "Kotlin + Spring Boot", "replica 1/2")
+        Container(rabbitmq_pod2, "RabbitMQ Node", "Erlang", "cluster node 2/3")
+        Container(redis_pod2, "Redis Node", "Redis", "cluster node 2/3")
+    }
+
+    ' === BACKEND NODE 3 ===
+    Deployment_Node(backend_node_3, "Node 3", "k8s-node-3 | c5.xlarge") {
+        Container(web_frontend_pod3, "Web Frontend", "React + TypeScript", "replica 3/3")
+        Container(geolocation_pod1, "Geolocation Service", "Kotlin + Spring Boot", "replica 1/2")
+        Container(admin_pod1, "Admin Service", "Kotlin + Spring Boot", "replica 1/2")
+        Container(review_pod3, "Review Service", "Kotlin + Spring Boot", "replica 2/2")
+        Container(insurance_pod2, "Insurance Service", "Kotlin + Spring Boot", "replica 2/2")
+        Container(pricing_pod2, "Pricing Service", "Kotlin + Spring Boot", "replica 2/2")
+        Container(notification_pod3, "Notification Service", "Kotlin + Spring Boot", "replica 3/3")
+        Container(rabbitmq_pod3, "RabbitMQ Node", "Erlang", "cluster node 3/3")
+        Container(redis_pod3, "Redis Node", "Redis", "cluster node 3/3")
+    }
+}
+
+' === DATABASE LAYER ===
+Deployment_Node(db_layer, "Database Layer", "Managed Services") {
+
+    ' === POSTGRESQL КЛАСТЕР ===
+    Deployment_Node(postgres_cluster, "PostgreSQL Cluster", "Aurora PostgreSQL") {
+        ContainerDb(postgres_primary, "PostgreSQL Primary", "Aurora", "Запись | pgsql-node-1")
+
+        Deployment_Node(pg_node_2, "Database Node 2", "Физический сервер") {
+            ContainerDb(postgres_slave_1, "PostgreSQL Standby 1", "Aurora", "Чтение | pgsql-node-2")
+        }
+
+        Deployment_Node(pg_node_3, "Database Node 3", "Физический сервер") {
+            ContainerDb(postgres_slave_2, "PostgreSQL Standby 2", "Aurora", "Чтение | pgsql-node-3")
+        }
+    }
+
+    ' === ELASTICSEARCH КЛАСТЕР ===
+    Deployment_Node(elasticsearch_cluster, "Elasticsearch Cluster", "Amazon OpenSearch") {
+        Deployment_Node(es_node_1, "Elasticsearch Node 1", "Физический сервер") {
+            ContainerDb(elasticsearch_1, "Elasticsearch Node 1", "Elasticsearch", "Data Node")
+        }
+
+        Deployment_Node(es_node_2, "Elasticsearch Node 2", "Физический сервер") {
+            ContainerDb(elasticsearch_2, "Elasticsearch Node 2", "Elasticsearch", "Data Node")
+        }
+
+        Deployment_Node(es_node_3, "Elasticsearch Node 3", "Физический сервер") {
+            ContainerDb(elasticsearch_3, "Elasticsearch Node 3", "Elasticsearch", "Master Node")
+        }
+    }
+
+    ' === MINIO/S3 КЛАСТЕР ===
+    Deployment_Node(minio_cluster, "MinIO Cluster", "S3 Compatible") {
+        Deployment_Node(minio_node_1, "MinIO Node 1", "Физический сервер") {
+            ContainerDb(minio_1, "MinIO Node 1", "MinIO", "Storage server")
+        }
+
+        Deployment_Node(minio_node_2, "MinIO Node 2", "Физический сервер") {
+            ContainerDb(minio_2, "MinIO Node 2", "MinIO", "Storage server")
+        }
+    }
+}
+
+' === MOBILE APPS ===
+Deployment_Node(mobile_layer, "Mobile Applications", "React Native") {
+    ContainerDb(ios_app, "iOS App", "React Native", "App Store")
+    ContainerDb(android_app, "Android App", "React Native", "Google Play")
+}
+
+' === MONITORING & LOGGING ===
+Deployment_Node(monitoring, "Monitoring & Logging", "Отдельный namespace") {
+    Container(prometheus, "Prometheus", "Prometheus", "Сбор метрик")
+    Container(grafana, "Grafana", "Grafana", "Визуализация метрик")
+    Container(loki, "Loki", "Loki", "Сбор логов")
+    Container(promtail, "Promtail", "Promtail", "Агент сбора логов")
+    Container(jacoco, "JaCoCo", "JaCoCo", "Покрытие кода")
+    Container(testcontainers, "Testcontainers", "Testcontainers", "Интеграционные тесты")
+}
+
+' === EXTERNAL SERVICES ===
+System_Ext(payment_gateway, "Payment Gateway", "Stripe/PayPal")
+System_Ext(map_service, "Map Service", "Google Maps API")
+System_Ext(email_service, "Email Service", "SendGrid/AWS SES")
+System_Ext(sms_service, "SMS Service", "Twilio")
+System_Ext(insurance_api, "Insurance API", "Внешний страховой сервис")
+System_Ext(cdn, "CDN", "CloudFront")
+
+Person(арендатор, "Арендатор", "Клиент платформы")
+Person(поставщик, "Поставщик", "Владелец ТС")
+Person(администратор, "Администратор", "Модерация и поддержка")
+
+' === ПОЛНЫЕ СВЯЗИ ДЛЯ ВСЕХ СЕРВИСОВ ===
+
+' 1. Основной поток трафика от клиентов
+Rel(арендатор, cdn, "HTTPS")
+Rel(поставщик, cdn, "HTTPS")
+Rel(администратор, cdn, "HTTPS")
+Rel(cdn, ingress_controller, "HTTPS")
+Rel(ingress_controller, api_gateway, "HTTPS")
+
+' 2. Frontend доставка
+Rel(api_gateway, web_frontend_pod1, "HTTP", "SPA delivery")
+
+' 3. Мобильные приложения
+Rel(ios_app, api_gateway, "HTTPS", "API Calls")
+Rel(android_app, api_gateway, "HTTPS", "API Calls")
+
+' 4. API Gateway -> K8s Services (микросервисы)
+Rel(api_gateway, identity_service_svc, "HTTP", "Аутентификация")
+Rel(api_gateway, vehicle_service_svc, "HTTP", "Управление ТС")
+Rel(api_gateway, search_service_svc, "HTTP", "Поиск ТС")
+Rel(api_gateway, booking_service_svc, "HTTP", "Бронирование")
+Rel(api_gateway, payment_service_svc, "HTTP", "Платежи")
+Rel(api_gateway, review_service_svc, "HTTP", "Отзывы")
+Rel(api_gateway, admin_service_svc, "HTTP", "Админ-панель")
+
+' 5. K8s Services -> Pods (load balancing)
+Rel(identity_service_svc, identity_pod1, "HTTP", "LB → identity pods")
+Rel(vehicle_service_svc, vehicle_pod1, "HTTP", "LB → vehicle pods")
+Rel(search_service_svc, search_pod1, "HTTP", "LB → search pods")
+Rel(booking_service_svc, booking_pod1, "HTTP", "LB → booking pods")
+Rel(payment_service_svc, payment_pod1, "HTTP", "LB → payment pods")
+Rel(review_service_svc, review_pod2, "HTTP", "LB → review pods")
+
+' 6. Сервисы -> PostgreSQL (структурированные данные)
+Rel(identity_pod1, postgres_primary, "JDBC", "Пользователи, роли, сессии")
+Rel(vehicle_pod1, postgres_primary, "JDBC", "ТС, характеристики, фото")
+Rel(booking_pod1, postgres_primary, "JDBC", "Бронирования, доступность")
+Rel(payment_pod1, postgres_primary, "JDBC", "Платежи, транзакции, депозиты")
+Rel(review_pod2, postgres_primary, "JDBC", "Отзывы, рейтинги")
+
+' 7. Сервисы -> Elasticsearch (поиск)
+Rel(search_pod1, elasticsearch_1, "REST", "Индексация и поиск ТС")
+Rel(vehicle_pod1, elasticsearch_1, "REST", "Обновление индекса")
+
+' 8. Сервисы -> Redis (кэш)
+Rel(identity_pod1, redis_service, "Lettuce", "Сессии, токены")
+Rel(search_pod1, redis_service, "Lettuce", "Кэш результатов поиска")
+Rel(vehicle_pod1, redis_service, "Lettuce", "Кэш характеристик ТС")
+Rel(pricing_pod1, redis_service, "Lettuce", "Кэш цен")
+
+' 9. Сервисы -> RabbitMQ (асинхронные события)
+Rel(booking_pod1, rabbitmq_service, "AMQP", "События бронирования")
+Rel(payment_pod1, rabbitmq_service, "AMQP", "События платежей")
+Rel(notification_pod1, rabbitmq_service, "AMQP", "Подписка на уведомления")
+
+' 10. Сервисы -> MinIO/S3 (файлы)
+Rel(vehicle_pod1, minio_1, "S3 API", "Фото ТС, документы")
+Rel(identity_pod1, minio_1, "S3 API", "Аватарки, документы")
+
+' 11. Кластерные связи
+Rel(rabbitmq_pod1, rabbitmq_pod2, "Erlang Distribution", "RabbitMQ cluster")
+Rel(redis_pod1, redis_pod2, "Redis Cluster", "Redis cluster")
+Rel(elasticsearch_1, elasticsearch_2, "Gossip Protocol", "Elasticsearch cluster")
+
+' 12. Внешние интеграции
+Rel(payment_pod1, payment_gateway, "HTTPS", "Обработка платежей")
+Rel(geolocation_pod1, map_service, "HTTPS", "Геокодирование, маршруты")
+Rel(notification_pod1, email_service, "HTTPS", "Email уведомления")
+Rel(notification_pod1, sms_service, "HTTPS", "SMS уведомления")
+Rel(insurance_pod1, insurance_api, "HTTPS", "Страхование ТС")
+
+' 13. Мониторинг
+Rel(prometheus, identity_service_svc, "Metrics", "Метрики identity service")
+Rel(prometheus, booking_service_svc, "Metrics", "Метрики booking service")
+Rel(prometheus, postgres_primary, "Metrics", "Метрики БД")
+Rel(promtail, identity_pod1, "Logs", "Сбор логов")
+Rel(promtail, booking_pod1, "Logs", "Сбор логов")
+
+' 14. Тестирование
+Rel(testcontainers, postgres_primary, "Test", "Интеграционные тесты")
+Rel(jacoco, identity_pod1, "Coverage", "Покрытие кода")
+
+@enduml
